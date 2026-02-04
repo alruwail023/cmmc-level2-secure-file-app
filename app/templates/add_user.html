@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Add User - Secure Uploader{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Add New User</h3>
+                    <div id="message" style="display: none;" class="alert" role="alert"></div>
+                    <form id="addUserForm">
+                        <div class="mb-3">
+                            <label class="form-label" for="username">Username</label>
+                            <input class="form-control" type="text" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="password">Password</label>
+                            <input class="form-control" type="password" id="password" name="password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="role">Role</label>
+                            <select class="form-select" id="role" name="role">
+                                {% for role in roles %}
+                                <option value="{{ role }}">{{ role }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" type="submit">Add User</button>
+                        <a class="btn btn-link" href="{{ url_for('index') }}">Back to Home</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('addUserForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const messageDiv = document.getElementById('message');
+        const formData = {
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+            role: document.getElementById('role').value
+        };
+        fetch('/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) })
+            .then(async response => {
+                const data = await response.json().catch(()=>({}));
+                messageDiv.style.display = 'block';
+                if (data.error) {
+                    messageDiv.className = 'alert alert-danger';
+                    messageDiv.textContent = data.error;
+                } else {
+                    messageDiv.className = 'alert alert-success';
+                    messageDiv.textContent = 'User created successfully!';
+                    document.getElementById('addUserForm').reset();
+                }
+            }).catch(err => {
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'alert alert-danger';
+                messageDiv.textContent = 'An error occurred while creating the user.';
+            });
+    });
+</script>
+{% endblock %}

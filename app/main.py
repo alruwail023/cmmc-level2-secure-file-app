@@ -29,7 +29,7 @@ from argon2.exceptions import VerifyMismatchError
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import re  # for password complexity
-from crypto_utils import load_key_from_env, encrypt_bytes, decrypt_bytes
+from app.crypto_utils import load_key_from_env, encrypt_bytes, decrypt_bytes
 try:
     from azure.storage.blob import BlobServiceClient
 except Exception:
@@ -54,7 +54,9 @@ app.config.update(
 ph = PasswordHasher()
 
 # Rate limiter
-limiter = Limiter(app, key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address)
+limiter.init_app(app)
+
 
 # ------------------ user roles ------------------
 class UserRole(enum.Enum):

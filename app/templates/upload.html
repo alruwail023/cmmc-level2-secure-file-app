@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload - Secure Uploader{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-body">
+          <h3 class="card-title">Upload a file (will be encrypted)</h3>
+          <form id="uploadForm" method="post" enctype="multipart/form-data">
+            <div class="mb-3">
+              <input id="fileInput" class="form-control" type="file" name="file" required>
+            </div>
+
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" value="1" id="clientEncrypt">
+              <label class="form-check-label" for="clientEncrypt">Encrypt in browser before upload</label>
+            </div>
+
+            <div id="passphraseRow" class="mb-3" style="display:none;">
+              <label class="form-label">Passphrase (used to derive key)</label>
+              <input id="passphrase" class="form-control" type="password" placeholder="Enter passphrase to encrypt file">
+              <div class="form-text">Keep this passphrase safe — the server will not be able to decrypt files encrypted in the browser.</div>
+            </div>
+
+            <div class="mb-3">
+              <button id="submitBtn" class="btn btn-success" type="submit">Upload</button>
+              <a class="btn btn-link" href="{{ url_for('files') }}">Back to Files</a>
+            </div>
+            <div id="uploadMsg" style="display:none"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Toggle passphrase input
+const clientEncryptCheckbox = document.getElementById('clientEncrypt');
+const passphraseRow = document.getElementById('passphraseRow');
+clientEncryptCheckbox.addEventListener('change', () => {
+  passphraseRow.style.display = clientEncryptCheckbox.checked ? 'block' : 'none';
+});
+
+// Utility: derive AES-GCM 256-bit key from passphrase using PBKDF2
+async function deriveKey(passphrase, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await window.crypto.subtle.importKey('raw', enc.encode(passphrase), {name: 'PBKDF2'}, false, ['deriveKey']);
+  return await window.crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: salt, iterations: 200000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+// Encrypt a file using derived key; output = IV (12 bytes) || ciphertext
+async function encryptFileWithPassphrase(file, passphrase) {
+  const salt = window.crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveKey(passphrase, salt);
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const arrayBuffer = await file.arrayBuffer();
+  const ct = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, arrayBuffer);
+  // return combined: salt(16) || iv(12) || ct
+  const combined = new Uint8Array(16 + 12 + ct.byteLength);
+  combined.set(salt, 0);
+  combined.set(iv, 16);
+  combined.set(new Uint8Array(ct), 28);
+  return combined.buffer;
+}
+
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+  const fileInput = document.getElementById('fileInput');
+  if (!fileInput.files || fileInput.files.length === 0) return; // let browser handle
+  if (!clientEncryptCheckbox.checked) return; // normal form submit (server-side encryption)
+
+  e.preventDefault();
+  const file = fileInput.files[0];
+  const pass = document.getElementById('passphrase').value;
+  if (!pass) { alert('Enter a passphrase to encrypt the file in the browser.'); return; }
+
+  const submitBtn = document.getElementById('submitBtn');
+  submitBtn.disabled = true;
+  const msg = document.getElementById('uploadMsg');
+  msg.style.display = 'block'; msg.className = 'alert alert-info'; msg.textContent = 'Encrypting file in browser...';
+
+  try {
+    const encBuffer = await encryptFileWithPassphrase(file, pass);
+    const encBlob = new Blob([encBuffer], { type: 'application/octet-stream' });
+    // create a File so server receives filename metadata
+    const encFile = new File([encBlob], file.name, { type: 'application/octet-stream' });
+
+    const form = new FormData();
+    form.append('file', encFile);
+    form.append('client_encrypted', '1');
+
+    msg.textContent = 'Uploading encrypted file...';
+    const resp = await fetch(window.location.pathname, { method: 'POST', body: form });
+    if (resp.ok) {
+      msg.className = 'alert alert-success';
+      msg.textContent = 'Upload complete. File encrypted in browser.';
+      setTimeout(()=> location.href = '/files', 800);
+    } else {
+      const text = await resp.text().catch(()=>null);
+      msg.className = 'alert alert-danger';
+      msg.textContent = 'Upload failed: ' + (text || resp.status);
+    }
+  } catch (err) {
+    msg.className = 'alert alert-danger';
+    msg.textContent = 'Error encrypting or uploading file: ' + (err && err.message ? err.message : err);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+</script>
+{% endblock %}
+

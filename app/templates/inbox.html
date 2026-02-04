@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Inbox - Secure Uploader{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Inbox</h2>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('files') }}">My Files</a>
+  </div>
+
+  {% if messages %}
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-striped mb-0">
+          <thead class="table-light"><tr><th>When</th><th>From</th><th>File</th><th>Message</th></tr></thead>
+          <tbody>
+          {% for m in messages %}
+          <tr>
+            <td>{{ m[6] }}</td>
+            <td>{{ m[4] }}</td>
+            <td><a href="{{ url_for('download', file_id=m[1]) }}">{{ m[2] }}</a></td>
+            <td>{{ m[5] }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <p class="text-muted">No messages.</p>
+  {% endif %}
+{% endblock %}

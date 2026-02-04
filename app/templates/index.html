@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - Secure Uploader{% endblock %}
+
+{% block content %}
+  <div class="py-4 text-center">
+    <h1 class="display-6">Secure Uploader</h1>
+    <p class="lead text-muted">Encrypt files on upload and share securely with other users.</p>
+    <div class="d-flex justify-content-center gap-2 mt-3">
+      <a class="btn btn-primary" href="{{ url_for('upload') }}">Upload</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('files') }}">View Files</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('add_user_form') }}">Add User</a>
+    </div>
+  </div>
+{% endblock %}

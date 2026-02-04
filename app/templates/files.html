@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Files - Secure Uploader{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Stored Files</h2>
+    <div>
+      <a class="btn btn-sm btn-primary" href="{{ url_for('upload') }}">Upload New</a>
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('inbox') }}">Inbox</a>
+    </div>
+  </div>
+
+  {% if files %}
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-striped mb-0 card-table">
+          <thead class="table-light"><tr><th>ID</th><th>Original Name</th><th>Mime</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
+          <tbody>
+          {% for f in files %}
+          <tr>
+            <td>{{ f[0] }}</td>
+            <td>{{ f[1] }}</td>
+            <td>{{ f[3] }}</td>
+            <td>{{ f[4] }}</td>
+            <td>{{ f[5] }}</td>
+            <td>
+              {% if f[3] and f[3].startswith('image/') %}
+                <a class="btn btn-sm btn-outline-success" href="{{ url_for('preview', file_id=f[0]) }}" target="_blank">Preview</a>
+              {% endif %}
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('download', file_id=f[0]) }}">Download</a>
+              <form class="d-inline" method="post" action="{{ url_for('delete', file_id=f[0]) }}" onsubmit="return confirm('Delete file?');">
+                <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+              </form>
+              {% if current_user and (current_user.id == f[6] or current_user.role == 'admin') %}
+                <details class="d-inline ms-2">
+                  <summary class="btn btn-sm btn-outline-secondary">Share</summary>
+                  <form class="d-inline ms-2" method="post" action="{{ url_for('share_file', file_id=f[0]) }}">
+                    <input class="form-control form-control-sm d-inline-block" style="width:140px;" name="username" placeholder="username" />
+                    <input class="form-control form-control-sm d-inline-block" style="width:180px;" name="message" placeholder="message" />
+                    <button class="btn btn-sm btn-primary" type="submit">Send</button>
+                  </form>
+                </details>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <p class="text-muted">No files yet.</p>
+  {% endif %}
+{% endblock %}
+
