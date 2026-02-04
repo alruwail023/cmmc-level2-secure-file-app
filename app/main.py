@@ -511,6 +511,8 @@ def upload():
         else:
             if ENCKEY is None:
                 abort(500, description="Server encryption key not set.")
+
+
             enc_blob = encrypt_bytes(file_bytes, ENCKEY)
 
         stored_name = base64.urlsafe_b64encode(os.urandom(9)).decode().rstrip('=') + ".bin"
