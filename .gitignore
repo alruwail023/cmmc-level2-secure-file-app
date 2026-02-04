@@ -206,3 +206,9 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 .env
+
+# secrets / local runtime data (do not commit)
+.upload_enc_key
+kdf_salt.bin
+files.db
+uploads/
