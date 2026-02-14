@@ -195,18 +195,33 @@ def storage_save_bytes(stored_name: str, data: bytes) -> None:
     if USE_AZURE_BLOBS and AZ_BLOB_CLIENT is not None:
         blob = AZ_BLOB_CLIENT.get_blob_client(container=AZ_BLOB_CONTAINER, blob=stored_name)
         blob.upload_blob(data, overwrite=True)
+    else:
+        path = os.path.join(app.config['UPLOAD_FOLDER'], stored_name)
+        with open(path, 'wb') as fh:
+            fh.write(data)
 
 def storage_read_bytes(stored_name: str) -> bytes:
     if USE_AZURE_BLOBS and AZ_BLOB_CLIENT is not None:
         blob = AZ_BLOB_CLIENT.get_blob_client(container=AZ_BLOB_CONTAINER, blob=stored_name)
         downloader = blob.download_blob()
         return downloader.readall()
+    else:
+        path = os.path.join(app.config['UPLOAD_FOLDER'], stored_name)
+        with open(path, 'rb') as fh:
+            return fh.read()
 
 def storage_delete(stored_name: str) -> None:
     if USE_AZURE_BLOBS and AZ_BLOB_CLIENT is not None:
         try:
             blob = AZ_BLOB_CLIENT.get_blob_client(container=AZ_BLOB_CONTAINER, blob=stored_name)
             blob.delete_blob()
+        except Exception:
+            pass
+    else:
+        path = os.path.join(app.config['UPLOAD_FOLDER'], stored_name)
+        try:
+            if os.path.exists(path):
+                os.remove(path)
         except Exception:
             pass
 
@@ -291,48 +306,8 @@ def init_db():
     )
     ''')
 
-    # Audit log table
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS audit_log(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        username TEXT,
-        action TEXT NOT NULL,
-        target TEXT,
-        result TEXT NOT NULL,
-        ip_address TEXT,
-        timestamp TEXT NOT NULL
-    )
-    ''')
-
     conn.commit()
     conn.close()
-
-
-
-def log_event(user_id, username, action, target, result):
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('''
-            INSERT INTO audit_log
-            (user_id, username, action, target, result, ip_address, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            user_id,
-            username,
-            action,
-            target,
-            result,
-            request.remote_addr,
-            datetime.datetime.utcnow().isoformat()
-        ))
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"[AUDIT ERROR] {e}")
-
-
 
     # Ensure `client_encrypted` column exists on `files` table for marking client-side encrypted uploads
     conn = sqlite3.connect(DB_PATH)
@@ -494,34 +469,27 @@ def index():
     roles = [role.value for role in UserRole]
     return render_template('index.html', roles=roles)
 
+
 @app.route('/login', methods=['GET', 'POST'])
 @limiter.limit("5 per minute")
 def login():
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-
+        username = request.form['username'].strip()
+        password = request.form['password']
         row = get_user_by_username(username)
         if row is None:
-            log_event(None, username, "login", "auth", "FAILED")
             flash("Invalid username or password")
             return redirect(url_for('login'))
-
         user_id, uname, pw_hash, role, created_at = row
-
         try:
             ph.verify(pw_hash, password)
         except VerifyMismatchError:
-            log_event(user_id, username, "login", "auth", "FAILED")
             flash("Invalid username or password")
             return redirect(url_for('login'))
-
         session.clear()
         session['user_id'] = user_id
-        log_event(user_id, username, "login", "auth", "SUCCESS")
         flash("Logged in successfully.")
         return redirect(url_for('files'))
-
     return render_template('login.html')
 
 
