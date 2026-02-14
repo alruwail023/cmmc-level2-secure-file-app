@@ -85,6 +85,19 @@ def login_required(view_func):
         return view_func(*args, **kwargs)
     return wrapped
 
+def admin_required(view_func):
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        if g.user is None:
+            flash("Please log in first.")
+            return redirect(url_for("login"))
+
+        if g.user.get("role") != "admin":
+            abort(403)
+
+        return view_func(*args, **kwargs)
+    return wrapped
+
 
 @app.before_request
 def load_logged_in_user():
@@ -758,11 +771,13 @@ def delete_temp_file(file_id):
 
 # ---- users ----
 @app.route('/add-user')
+@admin_required
 def add_user_form():
     roles = [role.value for role in UserRole]
     return render_template('add_user.html', roles=roles)
 
 @app.route('/users', methods=['GET','POST'])
+@admin_required
 def users():
     if request.method == 'POST':
         data = request.json
