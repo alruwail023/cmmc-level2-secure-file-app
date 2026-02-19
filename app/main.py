@@ -446,8 +446,8 @@ def enforce_https_and_remote_access_monitoring():
     # Force HTTPS in prod (behind proxy supported)
     if FORCE_HTTPS:
         proto = request.headers.get("X-Forwarded-Proto", request.scheme)
-        if proto != "https":
-            return redirect(request.url.replace("http://", "https://"), code=301)
+#        if proto != "https":
+#            return redirect(request.url.replace("http://", "https://"), code=301)
 
 
 # =========================================
