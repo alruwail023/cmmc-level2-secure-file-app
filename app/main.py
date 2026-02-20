@@ -63,7 +63,8 @@ except Exception:
 # APP + CONFIG
 # =========================================
 app = Flask(__name__)
-
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 # Secret key (must be set in production)
 app.secret_key = os.environ.get("FLASK_SECRET", os.urandom(32))
 
@@ -93,7 +94,7 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 # Session hardening
 secure_cookies = True if IS_PROD else False
 app.config.update(
-    SESSION_COOKIE_SECURE=secure_cookies,     # AC/SC boundary in prod
+    SESSION_COOKIE_SECURE=False,     # AC/SC boundary in prod
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
 )

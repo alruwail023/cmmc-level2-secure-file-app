@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-02-20T08:38:34.976010+00:00",
+  "env": "development",
+  "force_https": false,
+  "max_content_length": 209715200,
+  "session_idle_minutes": 15,
+  "max_concurrent_sessions": 2,
+  "use_azure_blobs": false,
+  "blob_container": null,
+  "remote_ip_allowlist_enabled": false,
+  "code_hash": "830bb0351c21da64064c44f95cd8d0d3013e9e917ae476517bf546fcf18699df",
+  "db_path": "files.db",
+  "upload_folder": "uploads"
+}
