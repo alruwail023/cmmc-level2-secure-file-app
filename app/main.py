@@ -69,7 +69,7 @@ app.secret_key = os.environ.get("FLASK_SECRET", os.urandom(32))
 
 # Environments
 ENV = (os.environ.get("FLASK_ENV") or os.environ.get("ENV") or "").lower()
-IS_PROD = ENV == "production"
+IS_PROD = False
 
 # Allow pointing to a persistent data directory
 DATA_DIR = os.environ.get("DATA_DIR")  # e.g. /srv/secure_uploader_data
