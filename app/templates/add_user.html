@@ -51,21 +51,23 @@
 document.addEventListener('DOMContentLoaded', function() {
 
     const form = document.getElementById('addUserForm');
+    const csrfToken = document.querySelector('input[name="_csrf"]').value;
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
 
         fetch('/users', {
-    method: 'POST',
-    headers: {
-    "Content-Type": "application/json"
-},
-body: JSON.stringify({
-    username: document.getElementById('username').value,
-    password: document.getElementById('password').value,
-    role: document.getElementById('role').value
-})
-})
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": csrfToken
+            },
+            body: JSON.stringify({
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+                role: document.getElementById('role').value
+            })
+        })
         .then(res => res.json())
         .then(data => {
             const messageDiv = document.getElementById('message');

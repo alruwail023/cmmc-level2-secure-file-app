@@ -1373,51 +1373,54 @@ def users():
         return gate
 
     if request.method == "POST":
-        
-        print("---- POST HIT ----")
-        print("RAW FORM:", request.form)
-        print("USERNAME:", request.form.get("username"))
-        print("PASSWORD:", request.form.get("password"))
-        print("ROLE:", request.form.get("role"))
 
-        if not username or not password:
-            return {"error": "Username and password are required"}, 400
+       data = request.get_json()
 
-        if not validate_password_complexity(password):
-            return {"error": "Weak password (min 12, upper/lower/number/special)."}, 400
+       if not data:
+           return {"error": "Invalid JSON"}, 400
 
-        try:
-            create_user(username, password, role)
-            log_event(
-                g.user["id"],
-                g.user["username"],
-                "admin_create_user",
-                username,
-                "SUCCESS",
-                {"role": role},
-            )
-        except sqlite3.IntegrityError:
-            log_event(
-                g.user["id"],
-                g.user["username"],
-                "admin_create_user",
-                username,
-                "FAILED",
-                {"reason": "exists"},
-            )
-            return {"error": "Username already exists"}, 400
-        except ValueError as e:
-            log_event(
-                g.user["id"],
-                g.user["username"],
-                "admin_create_user",
-                username,
-                "FAILED",
-                {"reason": str(e)},
-            )
-            return {"error": str(e)}, 400
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    role = (data.get("role") or "user").lower()
 
-        return {"message": "User created"}, 201
+    if not username or not password:
+        return {"error": "Username and password are required"}, 400
+
+    if not validate_password_complexity(password):
+        return {"error": "Weak password (min 12, upper/lower/number/special)."}, 400
+
+    try:
+        create_user(username, password, role)
+        log_event(
+            g.user["id"],
+            g.user["username"],
+            "admin_create_user",
+            username,
+            "SUCCESS",
+            {"role": role},
+        )
+    except sqlite3.IntegrityError:
+        log_event(
+            g.user["id"],
+            g.user["username"],
+            "admin_create_user",
+            username,
+            "FAILED",
+            {"reason": "exists"},
+        )
+        return {"error": "Username already exists"}, 400
+    except ValueError as e:
+        log_event(
+            g.user["id"],
+            g.user["username"],
+            "admin_create_user",
+            username,
+            "FAILED",
+            {"reason": str(e)},
+        )
+        return {"error": str(e)}, 400
+
+    return {"message": "User created"}, 201
 
     # GET list users
     conn = db_conn()
