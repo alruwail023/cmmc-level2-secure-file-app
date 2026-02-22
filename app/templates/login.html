@@ -9,6 +9,7 @@
         <div class="card-body">
           <h3 class="card-title">Login</h3>
           <form method="post" action="{{ url_for('login') }}">
+	    <input type="hidden" name="_csrf" value="{{ CSRF_TOKEN }}">
             <div class="mb-3">
               <label class="form-label">Username</label>
               <input class="form-control" type="text" name="username" required>

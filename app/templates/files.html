@@ -84,13 +84,14 @@
               </a>
 
               <form method="post"
-                    action="{{ url_for('delete', file_id=f[0]) }}"
-                    class="d-inline"
-                    onsubmit="return confirm('Are you sure you want to delete this file?');">
-                <button type="submit" class="btn btn-sm btn-outline-danger">
-                  Delete
-                </button>
-              </form>
+      action="{{ url_for('delete', file_id=f[0]) }}"
+      class="d-inline"
+      onsubmit="return confirm('Are you sure you want to delete this file?');">
+    <input type="hidden" name="_csrf" value="{{ CSRF_TOKEN }}">
+    <button type="submit" class="btn btn-sm btn-outline-danger">
+        Delete
+    </button>
+</form>
 
               {% if current_user and (current_user.id == f[6] or current_user.role == 'admin') %}
               <details class="d-inline-block ms-2">
@@ -99,6 +100,7 @@
                 </summary>
                 <div class="mt-2 p-2 border rounded bg-light">
                   <form method="post" action="{{ url_for('share_file', file_id=f[0]) }}">
+			<input type="hidden" name="_csrf" value="{{ CSRF_TOKEN }}">
                     <input class="form-control form-control-sm mb-2"
                            name="username"
                            placeholder="Username"

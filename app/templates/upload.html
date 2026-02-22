@@ -9,6 +9,7 @@
         <div class="card-body">
           <h3 class="card-title">Upload a file (will be encrypted)</h3>
           <form id="uploadForm" method="post" enctype="multipart/form-data">
+   	    <input type="hidden" name="_csrf" value="{{ CSRF_TOKEN }}">
             <div class="mb-3">
               <input id="fileInput" class="form-control" type="file" name="file" required>
             </div>
@@ -94,7 +95,11 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     form.append('client_encrypted', '1');
 
     msg.textContent = 'Uploading encrypted file...';
-    const resp = await fetch(window.location.pathname, { method: 'POST', body: form });
+    const resp = await fetch(window.location.pathname, {
+    method: 'POST',
+    headers: { "X-CSRF-Token": "{{ CSRF_TOKEN }}" },
+    body: form
+});
     if (resp.ok) {
       msg.className = 'alert alert-success';
       msg.textContent = 'Upload complete. File encrypted in browser.';

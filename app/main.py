@@ -425,7 +425,7 @@ def set_security_headers(resp):
     resp.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
     # CSP (simple default; adjust if you add external JS/CSS)
-    resp.headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';"
+    resp.headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';"
 
     if IS_PROD:
         # HSTS for HTTPS-only deployments
@@ -463,8 +463,8 @@ def csrf_token() -> str:
 
 
 def require_csrf():
-    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
-        sent = request.form.get("_csrf") or request.headers.get("X-CSRF-Token")
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        sent = request.values.get("_csrf") or request.headers.get("X-CSRF-Token")
         if not sent or not hmac.compare_digest(sent, session.get("_csrf", "")):
             abort(400, description="CSRF validation failed.")
 
@@ -556,7 +556,7 @@ def load_logged_in_user_and_enforce_timeout():
             is_locked = int(srow[1])
 
             # idle timeout
-            if (datetime.datetime.utcnow() - last_seen).total_seconds() > (SESSION_IDLE_MINUTES * 60):
+            if (datetime.datetime.now(datetime.timezone.utc) - last_seen).total_seconds() > (SESSION_IDLE_MINUTES * 60):
                 log_event(uid, g.user["username"], "session", "timeout", "SUCCESS")
                 # delete server-side session record
                 c.execute("DELETE FROM sessions WHERE user_id=? AND session_id=?", (uid, sid))
@@ -1373,24 +1373,48 @@ def users():
         return gate
 
     if request.method == "POST":
-        data = request.get_json(silent=True) or {}
-        username = (data.get("username") or "").strip()
-        password = data.get("password") or ""
-        role = (data.get("role") or "user").strip().lower()
+        
+        print("---- POST HIT ----")
+        print("RAW FORM:", request.form)
+        print("USERNAME:", request.form.get("username"))
+        print("PASSWORD:", request.form.get("password"))
+        print("ROLE:", request.form.get("role"))
 
         if not username or not password:
             return {"error": "Username and password are required"}, 400
+
         if not validate_password_complexity(password):
             return {"error": "Weak password (min 12, upper/lower/number/special)."}, 400
 
         try:
             create_user(username, password, role)
-            log_event(g.user["id"], g.user["username"], "admin_create_user", username, "SUCCESS", {"role": role})
+            log_event(
+                g.user["id"],
+                g.user["username"],
+                "admin_create_user",
+                username,
+                "SUCCESS",
+                {"role": role},
+            )
         except sqlite3.IntegrityError:
-            log_event(g.user["id"], g.user["username"], "admin_create_user", username, "FAILED", {"reason": "exists"})
+            log_event(
+                g.user["id"],
+                g.user["username"],
+                "admin_create_user",
+                username,
+                "FAILED",
+                {"reason": "exists"},
+            )
             return {"error": "Username already exists"}, 400
         except ValueError as e:
-            log_event(g.user["id"], g.user["username"], "admin_create_user", username, "FAILED", {"reason": str(e)})
+            log_event(
+                g.user["id"],
+                g.user["username"],
+                "admin_create_user",
+                username,
+                "FAILED",
+                {"reason": str(e)},
+            )
             return {"error": str(e)}, 400
 
         return {"message": "User created"}, 201

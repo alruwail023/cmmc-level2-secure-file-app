@@ -11,45 +11,33 @@
 
         <div id="message" style="display:none;" class="alert" role="alert"></div>
 
-        <form id="addUserForm">
-          <!-- Username -->
+        <form id="addUserForm" onsubmit="return false;">
+          <input type="hidden" name="_csrf" value="{{ CSRF_TOKEN }}">
+
           <div class="mb-3">
             <label class="form-label" for="username">Username</label>
-            <input class="form-control" type="text" id="username" name="username" required>
+            <input class="form-control" type="text" id="username" required>
           </div>
 
-          <!-- Password -->
-          <div class="mb-2">
+          <div class="mb-3">
             <label class="form-label" for="password">Password</label>
-            <input class="form-control" type="password" id="password" name="password" required>
+            <input class="form-control" type="password" id="password" required>
           </div>
 
-          <!-- Password Requirements Notice -->
-          <div style="margin:10px 0; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fafafa;">
-            <strong>Password requirements:</strong>
-            <ul style="margin:8px 0 0 18px;">
-              <li>At least 12 characters</li>
-              <li>Includes uppercase and lowercase letters</li>
-              <li>Includes a number</li>
-              <li>Includes a special character</li>
-            </ul>
-          </div>
-
-          <!-- Role -->
           <div class="mb-3">
             <label class="form-label" for="role">Role</label>
-            <select class="form-select" id="role" name="role">
+            <select class="form-select" id="role">
               {% for role in roles %}
               <option value="{{ role }}">{{ role }}</option>
               {% endfor %}
             </select>
           </div>
 
-          <!-- Buttons -->
           <div class="d-flex gap-2">
             <button class="btn btn-primary" type="submit">Add User</button>
             <a class="btn btn-secondary" href="{{ url_for('index') }}">Back to Home</a>
           </div>
+
         </form>
 
       </div>
@@ -60,39 +48,41 @@
 
 {% block scripts %}
 <script>
-document.getElementById('addUserForm').addEventListener('submit', function(e) {
-    e.preventDefault();
+document.addEventListener('DOMContentLoaded', function() {
 
-    const messageDiv = document.getElementById('message');
-    const formData = {
-        username: document.getElementById('username').value,
-        password: document.getElementById('password').value,
-        role: document.getElementById('role').value
-    };
+    const form = document.getElementById('addUserForm');
 
-    fetch('/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-    })
-    .then(res => res.json())
-    .then(data => {
-        messageDiv.style.display = 'block';
-        if (data.error) {
-            messageDiv.className = 'alert alert-danger';
-            messageDiv.textContent = data.error;
-        } else {
-            messageDiv.className = 'alert alert-success';
-            messageDiv.textContent = 'User created successfully.';
-            document.getElementById('addUserForm').reset();
-        }
-    })
-    .catch(() => {
-        messageDiv.style.display = 'block';
-        messageDiv.className = 'alert alert-danger';
-        messageDiv.textContent = 'An error occurred while creating the user.';
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        fetch('/users', {
+    method: 'POST',
+    headers: {
+    "Content-Type": "application/json"
+},
+body: JSON.stringify({
+    username: document.getElementById('username').value,
+    password: document.getElementById('password').value,
+    role: document.getElementById('role').value
+})
+})
+        .then(res => res.json())
+        .then(data => {
+            const messageDiv = document.getElementById('message');
+            messageDiv.style.display = 'block';
+
+            if (data.error) {
+                messageDiv.className = 'alert alert-danger';
+                messageDiv.textContent = data.error;
+            } else {
+                messageDiv.className = 'alert alert-success';
+                messageDiv.textContent = 'User created successfully.';
+                form.reset();
+            }
+        });
+
     });
+
 });
 </script>
 {% endblock %}
-
