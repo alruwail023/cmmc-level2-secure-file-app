@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>User Management</h2>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Disabled</th>
+            <th>MFA Enabled</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.id }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.role }}</td>
+            <td>{{ user.disabled }}</td>
+            <td>{{ user.mfa_enabled }}</td>
+            <td>
+                {% if not user.disabled %}
+                <form method="POST" action="/users/{{ user.id }}/disable">
+                    <input type="hidden" name="_csrf" value="{{ CSRF_TOKEN }}">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        Disable
+                    </button>
+                </form>
+                {% else %}
+                Disabled
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

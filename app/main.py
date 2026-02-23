@@ -904,6 +904,7 @@ def login():
         # Create session record + enforce concurrency
         session.clear()
         session["user_id"] = user_id
+        session["role"] = role
         session["session_id"] = _create_session_record(user_id)
         session["locked"] = 0
         session["mfa_ok"] = 0
@@ -1373,67 +1374,73 @@ def users():
         return gate
 
     if request.method == "POST":
+        data = request.get_json()
 
-       data = request.get_json()
+        if not data:
+            return {"error": "Invalid JSON"}, 400
 
-       if not data:
-           return {"error": "Invalid JSON"}, 400
+        username = (data.get("username") or "").strip()
+        password = data.get("password") or ""
+        role = (data.get("role") or "user").lower()
 
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
-    role = (data.get("role") or "user").lower()
+        if not username or not password:
+            return {"error": "Username and password are required"}, 400
 
-    if not username or not password:
-        return {"error": "Username and password are required"}, 400
+        if not validate_password_complexity(password):
+            return {"error": "Weak password (min 12, upper/lower/number/special)."}, 400
 
-    if not validate_password_complexity(password):
-        return {"error": "Weak password (min 12, upper/lower/number/special)."}, 400
+        try:
+            create_user(username, password, role)
+            log_event(
+                g.user["id"],
+                g.user["username"],
+                "admin_create_user",
+                username,
+                "SUCCESS",
+                {"role": role},
+            )
+            return {"message": "User created"}, 201
 
-    try:
-        create_user(username, password, role)
-        log_event(
-            g.user["id"],
-            g.user["username"],
-            "admin_create_user",
-            username,
-            "SUCCESS",
-            {"role": role},
-        )
-    except sqlite3.IntegrityError:
-        log_event(
-            g.user["id"],
-            g.user["username"],
-            "admin_create_user",
-            username,
-            "FAILED",
-            {"reason": "exists"},
-        )
-        return {"error": "Username already exists"}, 400
-    except ValueError as e:
-        log_event(
-            g.user["id"],
-            g.user["username"],
-            "admin_create_user",
-            username,
-            "FAILED",
-            {"reason": str(e)},
-        )
-        return {"error": str(e)}, 400
+        except sqlite3.IntegrityError:
+            log_event(
+                g.user["id"],
+                g.user["username"],
+                "admin_create_user",
+                username,
+                "FAILED",
+                {"reason": "exists"},
+            )
+            return {"error": "Username already exists"}, 400
 
-    return {"message": "User created"}, 201
+        except ValueError as e:
+            log_event(
+                g.user["id"],
+                g.user["username"],
+                "admin_create_user",
+                username,
+                "FAILED",
+                {"reason": str(e)},
+            )
+            return {"error": str(e)}, 400
 
-    # GET list users
+    # GET – list users
     conn = db_conn()
     c = conn.cursor()
     c.execute("SELECT id, username, role, created_at, disabled, mfa_enabled FROM users ORDER BY id DESC")
     rows = c.fetchall()
     conn.close()
-    return jsonify({
-        "users": [
-            {"id": r[0], "username": r[1], "role": r[2], "created_at": r[3], "disabled": int(r[4]), "mfa_enabled": int(r[5])}
-            for r in rows
-        ]
-    })
+
+    return render_template("users.html", users=[
+    {
+        "id": r[0],
+        "username": r[1],
+        "role": r[2],
+        "created_at": r[3],
+        "disabled": int(r[4]),
+        "mfa_enabled": int(r[5]),
+    }
+    for r in rows
+])
 
 
 @app.route("/users/<int:user_id>/disable", methods=["POST"])
@@ -1444,11 +1451,34 @@ def disable_user(user_id):
         return gate
     conn = db_conn()
     c = conn.cursor()
+    # Get old value first
+    c.execute("SELECT disabled FROM users WHERE id=?", (user_id,))
+    hrow = c.fetchone()
+    old_value = str(hrow[0]) if hrow else "unknown"
+
+    # Update value
     c.execute("UPDATE users SET disabled=1 WHERE id=?", (user_id,))
     conn.commit()
+
+    # Log configuration change (CM.2.064)
+    log_config_change(
+    g.user["id"],
+    g.user["username"],
+    "disable_user",
+    old_value,
+    "1"
+)
+
     conn.close()
-    log_event(g.user["id"], g.user["username"], "admin_disable_user", str(user_id), "SUCCESS")
-    return {"message": "User disabled"}, 200
+
+    log_event(
+    g.user["id"],
+    g.user["username"],
+    "admin_disable_user",
+    str(user_id),
+    "SUCCESS"
+)
+    return redirect("/users")
 
 
 @app.route("/audit", methods=["GET"])
@@ -1693,7 +1723,7 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    run_host = os.environ.get("FLASK_RUN_HOST", os.environ.get("HOST", "0.0.0.0"))
+    run_host = os.environ.get("FLASK_RUN_HOST", os.environ.get("HOST", "127.0.0.1"))
     run_port = int(os.environ.get("PORT", 5000))
     run_debug = (os.environ.get("FLASK_DEBUG", "1").lower() in ("1", "true", "yes")) and not IS_PROD
 
